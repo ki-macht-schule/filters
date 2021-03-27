@@ -2,7 +2,7 @@
 <html lang="en">
 
 <head>
-  <title>Hello World - TensorFlow.js</title>
+  <title>KI macht Schule - Filter Demo</title>
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11,50 +11,47 @@
   <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta2/dist/css/bootstrap.min.css" rel="stylesheet"
     integrity="sha384-BmbxuPwQa2lc/FVzBcNJ7UAyJxM6wuqIj61tLrc4wSX0szH/Ev+nYRRuWlolflfl" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"
+    integrity="sha512-iBBXm8fW90+nuLcSKlbmrPcLa0OT92xO1BIsZ+ywDWZCvqsWgccV3gFoRBv0z+8dLJgyAHIhR35VZc2oM/gI1w=="
+    crossorigin="anonymous" />
+
 </head>
 
 <body>
 
   <div class="container" id="main">
     <div class="row">
-      <h1>Filter Demo!</h1>
+      <h1>Filter Demo!
+        <button class="btn btn-primary mx-1" id="webcamButton"><i class="fas fa-video mx-1"></i> Webcam starten</button>
+      </h1>
+    </div>
+    <div class="row mb-5">
+      In dieser Demo zeigen wir den sogenannten "Sobel Filter", der zur Erkennung von Kanten verwendet werden kann.
     </div>
     <div class="row">
-      <div class="col-2">
-        <div class="input-group input-group-sm mb-0">
-          <input type="text" class="form-control">
-          <input type="text" class="form-control">
-          <input type="text" class="form-control">
-        </div>
-        <div class="input-group input-group-sm mb-0">
-          <input type="text" class="form-control">
-          <input type="text" class="form-control">
-          <input type="text" class="form-control">
-        </div>
-        <div class="input-group input-group-sm mb-0">
-          <input type="text" class="form-control">
-          <input type="text" class="form-control">
-          <input type="text" class="form-control">
-        </div>
-      </div>
-      <div class="col-2">
-        <button class="btn btn-primary" id="webcamButton">Webcam starten</button>
-      </div>
-    </div>
-    <div class="row">
-      <div class="col-lg-6">
+      <div class="col-lg-4">
         <div id="liveView" class="camView">
-          <video id="webcam" autoplay width="640" height="480"></video>
+          <video id="webcam" autoplay width="100%" height="480"></video>
         </div>
       </div>
-      <div class="col-lg-6">
-        <canvas id="filteredImage" style="height: 480; width: 640;"></canvas>
+      <div class="col-lg-4">
+        <div class="container">
+          <div class="row">
+            <h4><i class="fas fa-ellipsis-v px-2"></i> Vertikale Kanten <small id="filteredXlabel"></small></h4>
+            <canvas id="filteredX" style="width: 100%; height: 240;"></canvas>
+          </div>
+          <div class="row">
+            <h4><i class="fas fa-ellipsis-h px-2"></i> Horizontale Kanten <small id="filteredYlabel"></small></h4>
+            <canvas id="filteredY" style="width: 100%; height: 240;"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <h4>Kombinierter Filter <small id="filteredImageLabel"></small></h4>
+        <canvas id="filteredImage" style="width: 100%; height: 240;"></canvas>
       </div>
     </div>
-
   </div>
-
-
 
   <!-- Bootstrap & Deps -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta2/dist/js/bootstrap.bundle.min.js"
@@ -63,127 +60,152 @@
 
   <!-- Import TensorFlow.js library -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js" type="text/javascript"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis/dist/tfjs-vis.umd.min.js" type="text/javascript"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis/dist/tfjs-vis.umd.min.js" type="text/javascript">
+  </script>
 
   <!-- Custom scripts -->
   <script>
-  /**
-   * @license
-   * Copyright 2018 Google LLC. All Rights Reserved.
-   * Licensed under the Apache License, Version 2.0 (the "License");
-   * you may not use this file except in compliance with the License.
-   * You may obtain a copy of the License at
-   *
-   * http://www.apache.org/licenses/LICENSE-2.0
-   *
-   * Unless required by applicable law or agreed to in writing, software
-   * distributed under the License is distributed on an "AS IS" BASIS,
-   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   * See the License for the specific language governing permissions and
-   * limitations under the License.
-   * =============================================================================
-   */
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
 
-  const status = document.getElementById('status');
-  const video = document.getElementById('webcam');
-  const liveView = document.getElementById('liveView');
-  const demosSection = document.getElementById('demos');
-  const enableWebcamButton = document.getElementById('webcamButton');
-  const canvas = document.getElementById("filteredImage");
+    const status = document.getElementById('status');
+    const video = document.getElementById('webcam');
+    const liveView = document.getElementById('liveView');
+    const demosSection = document.getElementById('demos');
+    const enableWebcamButton = document.getElementById('webcamButton');
 
-  var frameID = 0;
+    var canvas = {
+      horizontal: document.getElementById("filteredX"),
+      vertical: document.getElementById("filteredY"),
+      joined: document.getElementById("filteredImage")
+    };
+    var labels = {
+      horizontal: document.getElementById("filteredXlabel"),
+      vertical: document.getElementById("filteredYlabel"),
+      joined: document.getElementById("filteredImageLabel")
+    };
 
-  const gaussian_2d = tf.tensor2d([
+    var frameID = 0;
+
+    const gaussian_2d = tf.tensor2d([
       [2, 4, 5, 4, 2],
       [4, 9, 12, 9, 4],
       [5, 12, 15, 12, 5],
       [4, 9, 12, 9, 4],
       [2, 4, 5, 4, 2],
-  ]).div(159.);
+    ]).div(159.);
 
-  const sobel_x = tf.tensor2d([
+    const sobel_x = tf.tensor2d([
       [1, 0, -1],
       [2, 0, -2],
       [1, 0, -1],
-  ]);
+    ]);
 
-  const sobel_y = tf.tensor2d([
-      [1, 2,  1],
-      [0, 0,  0],
+    const sobel_y = tf.tensor2d([
+      [1, 2, 1],
+      [0, 0, 0],
       [-1, -2, -1],
-  ]);
+    ]);
 
-  function filterImage(image) {
-    return tf.tidy( () => {
-      const smooth_image = tf.conv2d(
-        image,
-        gaussian_2d.reshape([5,5,1,1]),
-        [1, 1],
-        'same'
-      );
-      const filtered_x = tf.conv2d(
-        smooth_image,
-        sobel_x.reshape([3,3,1,1]),
-        [1, 1],
-        'same'
-      );
-      const filtered_y = tf.conv2d(
-        smooth_image,
-        sobel_y.reshape([3,3,1,1]),
-        [1, 1],
-        'same'
-      );
-      const output = tf.add(filtered_x.pow(2), filtered_y.pow(2)).sqrt();
-      return output;
-    });
-  }
+    function filterImage(image) {
+      return tf.tidy(() => {
+        const smooth_image = tf.conv2d(
+          image,
+          gaussian_2d.reshape([5, 5, 1, 1]),
+          [1, 1],
+          'same'
+        );
+        const filtered_x = tf.conv2d(
+          smooth_image,
+          sobel_x.reshape([3, 3, 1, 1]),
+          [1, 1],
+          'same'
+        );
+        const filtered_y = tf.conv2d(
+          smooth_image,
+          sobel_y.reshape([3, 3, 1, 1]),
+          [1, 1],
+          'same'
+        );
+        const output = tf.add(filtered_x.pow(2), filtered_y.pow(2)).sqrt();
+        return {
+          horizontal: filtered_x.reshape([480, 640]).clipByValue(0., 1.),
+          vertical: filtered_y.reshape([480, 640]).clipByValue(0., 1.),
+          joined: output.reshape([480, 640]).clipByValue(0., 1.)
+        };
+      });
+    }
 
-  // Check if webcam access is supported.
-  function getUserMediaSupported() {
-    return !!(navigator.mediaDevices &&
-      navigator.mediaDevices.getUserMedia);
-  }
+    // Check if webcam access is supported.
+    function getUserMediaSupported() {
+      return !!(navigator.mediaDevices &&
+        navigator.mediaDevices.getUserMedia);
+    }
 
-  function predictWebcam() {
-    const output = tf.tidy( () => {
-      const image =  tf.browser.fromPixels(video).mean(axis = 2, keepDims = true).div(255.);
-      return filterImage(image).reshape([480, 640]).clipByValue(0., 1.);
-    });
-    tf.browser.toPixels(output, canvas).then( e => {
-      tf.dispose(output);
-    });
-    window.requestAnimationFrame(predictWebcam);
-  }
+    function predictWebcam() {
+      const names = ["horizontal", "vertical", "joined"];
+      const output = tf.tidy(() => {
+        const image = tf.browser.fromPixels(video).mean(axis = 2, keepDims = true).div(255.);
+        return filterImage(image);
+      });
+      names.forEach(key => {
+        const sum = tf.tidy(() => {
+          s = tf.sum(output[key]);
+          return s.round().dataSync();
+        });
+        labels[key].innerHTML = `(${sum} pixel)`;
+        tf.browser.toPixels(output[key], canvas[key]).then(e => {
+          tf.dispose(output[key]);
+        });
+      })
+      window.requestAnimationFrame(predictWebcam);
+    }
 
-  // Enable the live webcam view and start classification.
-  function enableCam(event) {
+    // Enable the live webcam view and start classification.
+    function enableCam(event) {
 
-    // Hide the button once clicked.
-    event.target.classList.add('removed');  
-    
-    // getUsermedia parameters to force video but not audio.
-    const constraints = {
-      video: true,
-      audio: false,
-      frameRate: { max: 1 },
-    };
+      // Hide the button once clicked.
+      event.target.classList.add('removed');
 
-    // Activate the webcam stream.
-    navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
-      video.srcObject = stream;
-      video.addEventListener('loadeddata', predictWebcam);
-    });
-  }
+      // getUsermedia parameters to force video but not audio.
+      const constraints = {
+        video: true,
+        audio: false,
+        frameRate: {
+          max: 1
+        },
+      };
 
-  // If webcam supported, add event listener to button for when user
-  // wants to activate it to call enableCam function which we will 
-  // define in the next step.
-  if (getUserMediaSupported()) {
-    enableWebcamButton.addEventListener('click', enableCam);
-  } else {
-    console.warn('getUserMedia() is not supported by your browser');
-  }
-    </script>
-  </body>
+      // Activate the webcam stream.
+      navigator.mediaDevices.getUserMedia(constraints).then(function (stream) {
+        video.srcObject = stream;
+        video.addEventListener('loadeddata', predictWebcam);
+      });
+    }
+
+    // If webcam supported, add event listener to button for when user
+    // wants to activate it to call enableCam function which we will 
+    // define in the next step.
+    if (getUserMediaSupported()) {
+      enableWebcamButton.addEventListener('click', enableCam);
+    } else {
+      console.warn('getUserMedia() is not supported by your browser');
+    }
+  </script>
+</body>
 
 </html>
